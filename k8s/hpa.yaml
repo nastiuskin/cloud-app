@@ -1,0 +1,30 @@
+# HorizontalPodAutoscaler automatically adjusts the number of running pods
+# based on observed CPU utilization.
+#
+# How it works:
+#   - Every 15 seconds, HPA checks average CPU across all cloud-app pods
+#   - If average CPU > 70%: add pods (up to maxReplicas: 10)
+#   - If average CPU drops back down: remove pods (down to minReplicas: 2)
+#   - Scale-up is fast (~30s). Scale-down has a 5-minute cooldown to avoid flapping.
+#
+# Requires metrics-server to be running in the cluster.
+# GKE Autopilot includes metrics-server by default.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cloud-app-hpa
+  namespace: cloud-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cloud-app
+  minReplicas: 2    # always keep at least 2 pods for availability
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

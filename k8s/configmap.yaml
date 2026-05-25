@@ -1,0 +1,11 @@
+# Non-sensitive configuration injected as environment variables into the app pod.
+# Change DB_HOST here if the postgres service name ever changes — no image rebuild needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-app-config
+  namespace: cloud-app
+data:
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "cloudapp"

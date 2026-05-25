@@ -1,0 +1,66 @@
+# Manual Rollback Workflow
+#
+# Trigger this from the GitHub UI when a bad deployment needs to be reversed:
+#   GitHub repo → Actions tab → "Rollback" → Run workflow
+#
+# You can optionally specify a revision number. To see available revisions:
+#   kubectl rollout history deployment/cloud-app -n cloud-app
+#
+# Leave the revision field empty to roll back one version (most common case).
+#
+# Uses the same GitHub Secrets as ci-cd.yml:
+#   GCP_PROJECT_ID, GCP_SA_KEY, GKE_CLUSTER_NAME, GKE_CLUSTER_ZONE
+
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: 'Revision number to roll back to (leave empty for previous version)'
+        required: false
+        default: ''
+
+jobs:
+  rollback:
+    name: Roll Back Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get GKE credentials for kubectl
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
+          location: ${{ secrets.GKE_CLUSTER_ZONE }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Show rollout history before rollback
+        run: kubectl rollout history deployment/cloud-app -n cloud-app
+
+      - name: Perform rollback
+        run: |
+          if [ -n "${{ github.event.inputs.revision }}" ]; then
+            echo "Rolling back to revision ${{ github.event.inputs.revision }}"
+            kubectl rollout undo deployment/cloud-app \
+              --to-revision=${{ github.event.inputs.revision }} \
+              -n cloud-app
+          else
+            echo "Rolling back to previous version"
+            kubectl rollout undo deployment/cloud-app -n cloud-app
+          fi
+
+      - name: Wait for rollback to complete
+        run: |
+          kubectl rollout status deployment/cloud-app \
+            -n cloud-app \
+            --timeout=300s
+
+      - name: Show current image after rollback
+        run: |
+          kubectl get deployment cloud-app -n cloud-app \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'

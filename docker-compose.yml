@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  # ── Application ───────────────────────────────────────────────────────────────
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cloudapp
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy   # wait for Postgres to be ready before starting
+
+  # ── Database ──────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cloudapp
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"             
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # persist data across container restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d cloudapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# Named volume — Docker stores the data on your host machine.
+# Data survives `docker compose down` and comes back on `docker compose up`.
+volumes:
+  postgres_data:

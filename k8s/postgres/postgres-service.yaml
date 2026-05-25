@@ -1,0 +1,15 @@
+# Headless service (clusterIP: None) is required for StatefulSets.
+# It creates a stable DNS entry: postgres-service.cloud-app.svc.cluster.local
+# The app connects to Postgres using this hostname (set in ConfigMap as DB_HOST).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: cloud-app
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None

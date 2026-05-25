@@ -1,0 +1,52 @@
+# StatefulSet is used instead of a Deployment for PostgreSQL because:
+#   - It gives the pod a stable, predictable hostname (postgres-0)
+#   - It ensures the same pod always reconnects to the same disk
+#   - It prevents two Postgres pods from accidentally writing to the same storage
+#
+# volumeClaimTemplates automatically creates a PersistentVolumeClaim for each pod.
+# On GKE this provisions a real GCE Persistent Disk. Data survives pod restarts.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: cloud-app
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            # This is where PostgreSQL stores all its data files.
+            # We mount the persistent disk here so data survives restarts.
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+  # This template creates a PVC (and cloud disk) automatically per pod.
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]   # one pod reads/writes at a time
+        resources:
+          requests:
+            storage: 5Gi

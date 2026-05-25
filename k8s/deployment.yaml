@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-app
+  namespace: cloud-app
+spec:
+  replicas: 2
+  # Keep the last 5 deployment versions so we can roll back to any of them.
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: cloud-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never remove an old pod before a new one passes the readiness probe.
+      # This guarantees zero downtime during every deployment.
+      maxUnavailable: 0
+      # Allow one extra pod to exist temporarily during the rollout.
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: cloud-app
+    spec:
+      containers:
+        - name: cloud-app
+          # The CI/CD pipeline overrides this tag on every deployment with the exact commit SHA.
+          image: ghcr.io/nastiuskin/cloud-app:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          # Inject all keys from ConfigMap and Secret as environment variables.
+          envFrom:
+            - configMapRef:
+                name: cloud-app-config
+            - secretRef:
+                name: cloud-app-secret
+          # Readiness probe: Kubernetes only routes traffic to this pod once
+          # /actuator/health returns HTTP 200. Prevents routing to a starting pod.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+          # Liveness probe: Kubernetes restarts the pod if this fails 3 times.
+          # Catches situations where the app is running but frozen/deadlocked.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            failureThreshold: 3
+          # Resource requests: minimum guaranteed CPU/memory for this pod.
+          # Resource limits: hard cap — pod is killed if it exceeds memory limit.
+          resources:
+            requests:
+              cpu: "250m"      # 0.25 vCPU
+              memory: "256Mi"
+            limits:
+              cpu: "500m"      # 0.5 vCPU
+              memory: "512Mi"

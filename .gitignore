@@ -38,3 +38,8 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Secrets 
+.env
+k8s/secret.yaml
+k8s/postgres/postgres-secret.yaml

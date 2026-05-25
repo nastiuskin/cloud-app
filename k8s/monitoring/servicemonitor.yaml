@@ -1,0 +1,29 @@
+# ServiceMonitor tells the Prometheus Operator to scrape metrics from the app.
+# Without this, Prometheus doesn't know the app exists and collects nothing.
+#
+# How it works:
+#   1. Prometheus Operator watches for ServiceMonitor resources
+#   2. It finds this one and adds a scrape job targeting cloud-app pods
+#   3. Every 15 seconds it calls GET /actuator/prometheus on each pod
+#   4. The metrics appear in Prometheus and are visualised in Grafana
+#
+# The label "release: prometheus" must match the Helm release name used when
+# installing kube-prometheus-stack. If you used a different release name, update it.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloud-app-monitor
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - cloud-app
+  selector:
+    matchLabels:
+      app: cloud-app
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
