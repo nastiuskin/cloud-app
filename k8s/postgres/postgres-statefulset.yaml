@@ -29,6 +29,11 @@ spec:
           envFrom:
             - secretRef:
                 name: postgres-secret
+          env:
+            # Required on GKE: mount target must be a subdirectory, not the root
+            # of the mounted disk. Without this, PostgreSQL fails to initialize.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             # This is where PostgreSQL stores all its data files.
             # We mount the persistent disk here so data survives restarts.
@@ -37,7 +42,7 @@ spec:
           resources:
             requests:
               cpu: "250m"
-              memory: "256Mi"
+              memory: "512Mi"   # GKE Autopilot minimum is 512Mi
             limits:
               cpu: "500m"
               memory: "512Mi"

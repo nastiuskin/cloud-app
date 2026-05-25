@@ -59,7 +59,7 @@ spec:
           resources:
             requests:
               cpu: "250m"      # 0.25 vCPU
-              memory: "256Mi"
+              memory: "512Mi"  # GKE Autopilot minimum
             limits:
               cpu: "500m"      # 0.5 vCPU
               memory: "512Mi"
